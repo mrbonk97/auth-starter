@@ -20,6 +20,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
+        System.out.println("깔깔 낄낄 깔");
 
         if (header == null) {
             log.info("Authorization 헤더가 없음");

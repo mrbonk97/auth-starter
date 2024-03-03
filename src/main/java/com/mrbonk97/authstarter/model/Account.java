@@ -22,15 +22,15 @@ public class Account {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String email;
-    private String nickName;
+    private String name;
     private String password;
-    @OneToMany
-    private Set<UserRole> roles = new HashSet<>();
+    @Enumerated(EnumType.STRING)
+    private Role role;
     private Date emailVerified;
     private String image;
     @Enumerated(EnumType.STRING)
     private Provider provider;
-    private String providerAccountId;
+    private String providerId;
     private Date createdAt;
     private Date updatedAt;
     private Date deletedAt;

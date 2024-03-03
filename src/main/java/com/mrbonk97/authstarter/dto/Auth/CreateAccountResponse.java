@@ -15,7 +15,7 @@ public class CreateAccountResponse {
         CreateAccountResponse loginAccountResponse = new CreateAccountResponse();
         loginAccountResponse.setId(account.getId());
         loginAccountResponse.setEmail(account.getEmail());
-        loginAccountResponse.setNickname(account.getNickName());
+        loginAccountResponse.setNickname(account.getName());
         return loginAccountResponse;
     }
 }

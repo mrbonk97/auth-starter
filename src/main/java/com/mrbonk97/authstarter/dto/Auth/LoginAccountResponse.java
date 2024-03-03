@@ -18,7 +18,7 @@ public class LoginAccountResponse {
         LoginAccountResponse loginAccountResponse = new LoginAccountResponse();
         loginAccountResponse.setId(account.getId());
         loginAccountResponse.setEmail(account.getEmail());
-        loginAccountResponse.setNickname(account.getNickName());
+        loginAccountResponse.setNickname(account.getName());
         loginAccountResponse.setImage(account.getImage());
         loginAccountResponse.setAccessToken(account.getAccessToken());
         loginAccountResponse.setRefreshToken(account.getRefreshToken());
