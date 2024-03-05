@@ -1,55 +1,82 @@
 package com.mrbonk97.authstarter.service;
 
 import com.mrbonk97.authstarter.model.Account;
-import com.mrbonk97.authstarter.oauth2.OAuthAttributes;
-import com.mrbonk97.authstarter.oauth2.SessionUser;
+import com.mrbonk97.authstarter.model.Provider;
+import com.mrbonk97.authstarter.oauth2.user.OAuth2UserInfo;
+import com.mrbonk97.authstarter.oauth2.user.OAuth2UserInfoFactory;
+import com.mrbonk97.authstarter.oauth2.user.UserPrincipal;
 import com.mrbonk97.authstarter.repository.AccountRepository;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
-import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
-import java.util.Collections;
+import javax.naming.AuthenticationException;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 @Service
-public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
+public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private final AccountRepository accountRepository;
     private final HttpSession httpSession;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        System.out.println("왜 안넘어오냐 제발");
-        OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate = new DefaultOAuth2UserService();
-        OAuth2User oAuth2User = delegate.loadUser(userRequest);
+        OAuth2User oAuth2User = super.loadUser(userRequest);
 
-        String registrationId = userRequest.getClientRegistration().getRegistrationId();
-        String userNameAttributeName = userRequest.getClientRegistration().getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
+        try {
+            return processOAuth2User(userRequest, oAuth2User);
+        } catch (Exception ex) {
+            // Throwing an instance of AuthenticationException will trigger the OAuth2AuthenticationFailureHandler
+            throw new InternalAuthenticationServiceException(ex.getMessage(), ex.getCause());
+        }
 
-        OAuthAttributes attributes = OAuthAttributes.of(registrationId, userNameAttributeName, oAuth2User.getAttributes());
-
-        Account account = saveOrUpdate(attributes);
-
-        httpSession.setAttribute("user", new SessionUser(account));
-
-        return new DefaultOAuth2User(Collections.singleton(new SimpleGrantedAuthority(account.getRole().getKey())),
-                attributes.getAttributes(),
-                attributes.getNameAttributeKey());
     }
 
-    private Account saveOrUpdate(OAuthAttributes attributes) {
-        Account account = accountRepository
-                .findByEmail(attributes.getEmail())
-                .orElse(new Account());
+    private OAuth2User processOAuth2User(OAuth2UserRequest oAuth2UserRequest, OAuth2User oAuth2User) {
+        OAuth2UserInfo oAuth2UserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(oAuth2UserRequest.getClientRegistration().getRegistrationId(), oAuth2User.getAttributes());
+        if(StringUtils.isEmpty(oAuth2UserInfo.getEmail())) {
+            throw new RuntimeException("Email not found from OAuth2 provider");
+        }
 
-        account.setName(attributes.getName());
-        account.setImage(attributes.getPicture());
-        return accountRepository.save(account);
+        Optional<Account> accountOptional = accountRepository.findByEmail(oAuth2UserInfo.getEmail());
+        Account account;
+
+        if(accountOptional.isPresent()) {
+            account = accountOptional.get();
+            if(!account.getProvider().equals(Provider.valueOf((oAuth2UserRequest.getClientRegistration().getRegistrationId()))) {
+                throw new RuntimeException("Looks like you're signed up with " +
+                        account.getProvider() + " account. Please use your " + account.getProvider() +
+                        " account to login.");
+            }
+            account = updateExistingUser(account, oAuth2UserInfo);
+        } else {
+            account = registerNewUser(oAuth2UserRequest, oAuth2UserInfo);
+        }
+
+        return UserPrincipal.create(account, oAuth2User.getAttributes());
     }
+
+    private Account registerNewUser(OAuth2UserRequest oAuth2UserRequest, OAuth2UserInfo oAuth2UserInfo) {
+        Account user = new Account();
+
+        user.setProvider(Provider.valueOf(oAuth2UserRequest.getClientRegistration().getRegistrationId()));
+        user.setProviderId(oAuth2UserInfo.getId());
+        user.setName(oAuth2UserInfo.getName());
+        user.setEmail(oAuth2UserInfo.getEmail());
+        user.setImage(oAuth2UserInfo.getImageUrl());
+        return accountRepository.save(user);
+    }
+
+    private Account updateExistingUser(Account existingUser, OAuth2UserInfo oAuth2UserInfo) {
+        existingUser.setName(oAuth2UserInfo.getName());
+        existingUser.setImage(oAuth2UserInfo.getImageUrl());
+        return accountRepository.save(existingUser);
+    }
+
 }

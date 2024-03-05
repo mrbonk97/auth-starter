@@ -1,8 +1,9 @@
 package com.mrbonk97.authstarter.model;
 
 public enum Provider {
-    GOOGLE,
-    NAVER,
-    KAKAO,
-    LOCAL
+    google,
+    github,
+    naver,
+    kakao,
+    local
 }

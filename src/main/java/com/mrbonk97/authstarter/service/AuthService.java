@@ -26,7 +26,7 @@ public class AuthService {
         Account account = new Account();
         account.setEmail(email);
         account.setPassword(passwordEncoder.encode(password));
-        account.setProvider(Provider.LOCAL);
+        account.setProvider(Provider.local);
         return account;
     }
 

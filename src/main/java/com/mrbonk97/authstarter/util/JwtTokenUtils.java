@@ -1,15 +1,8 @@
 package com.mrbonk97.authstarter.util;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jws;
-import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -57,12 +50,16 @@ public class JwtTokenUtils {
     public static boolean validateToken(String token) {
         try {
             Jws<Claims> jws = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token);
+        } catch (SecurityException e) {
+            return false;
         } catch (SignatureException e) {
             log.info("Jwt 토큰 해독 실패: " + e.getMessage());
             return false;
-        }
-        catch (ExpiredJwtException e) {
-            log.info("Jwt 토큰 만료: " + e.getMessage());
+        }  catch(MalformedJwtException e) {
+            return false;
+        } catch(UnsupportedJwtException e) {
+            return false;
+        } catch ( ExpiredJwtException | IllegalArgumentException e) {
             return false;
         }
 
